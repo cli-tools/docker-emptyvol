@@ -114,7 +114,10 @@ do
 				echo "$VOLUME"
 			elif [ "$ARG" = "remove" ]
 			then
-				docker volume rm "$VOLUME"
+				# NOTE: allow rm to fail (it might be in use etc.)
+				# and this is just a best-effort activity anyway,
+				# to remove meaningless empty volumes.
+				docker volume rm "$VOLUME" || true
 			fi
 		elif [ -n "$VERBOSE" ]
 		then
