@@ -1,0 +1,125 @@
+#!/bin/sh
+
+set -eu
+
+IMAGE=alpine:latest
+
+metadata() {
+cat <<EOF
+{
+  "SchemaVersion": "0.1.0",
+  "Vendor": "cli-tools",
+  "Version": "1.0.0",
+  "ShortDescription": "List or remove empty volumes"
+}
+EOF
+}
+
+help() {
+cat <<EOF
+
+Usage:  docker $CMD [OPTIONS]
+
+A tool to list or remove empty storage volumes
+
+Options:
+      --dry-run      do not delete anything just show volumes that would be removed
+      --image IMAGE  use IMAGE to check if volume is empty (default ${IMAGE})
+
+Commands:
+  ls, list           list empty volumes
+  rm, remove         remove empty volumes
+EOF
+}
+
+if [ -z "${1-}" ]
+then
+	CMD="docker-emptyvol"
+else
+	CMD="$1"
+	shift
+fi
+
+if [ "$CMD" = "docker-cli-plugin-metadata" ]
+then
+	metadata
+	exit 0
+fi
+
+ARG=
+VERBOSE=
+
+while [ $# -gt 0 ]
+do
+	case "$1" in
+		--image)
+			IMAGE="$2"
+			shift 2
+			;;
+
+		--image=*)
+			IMAGE="${1#--image=#}"
+			shift
+			;;
+
+		--help)
+			help
+			exit 0
+			;;
+
+		--verbose)
+			VERBOSE=1
+			shift
+			;;
+
+		ls|list)
+			if [ -n "$ARG" ]
+			then
+				echo > /dev/stderr "Duplicate arguments"
+				exit 2
+			fi
+			ARG=list
+			shift
+			;;
+
+		rm|remove)
+			if [ -n "$ARG" ]
+			then
+				echo > /dev/stderr "Duplicate arguments"
+				exit 2
+			fi
+			ARG=remove
+			shift
+			;;
+
+		*)
+			echo > /dev/stderr "\"$1\" is not a valid $CMD command"
+			exit 2
+		;;
+	esac
+done
+
+if [ -z "$ARG" ]
+then
+	help
+	exit 0
+fi
+
+docker volume ls -q | while read -r VOLUME
+do
+	docker run --rm -v "$VOLUME:/data" "$IMAGE" ls -A /data | {
+		if ! read -r
+		then
+			if [ "$ARG" = "list" ]
+			then
+				echo "$VOLUME"
+			elif [ "$ARG" = "remove" ]
+			then
+				docker volume rm "$VOLUME"
+			fi
+		elif [ -n "$VERBOSE" ]
+		then
+			echo > /dev/stderr "$VOLUME: Not empty"
+		fi
+	}
+done
