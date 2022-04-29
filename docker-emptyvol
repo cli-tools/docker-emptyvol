@@ -23,7 +23,6 @@ Usage:  docker $CMD [OPTIONS]
 A tool to list or remove empty storage volumes
 
 Options:
-      --dry-run      do not delete anything just show volumes that would be removed
       --image IMAGE  use IMAGE to check if volume is empty (default ${IMAGE})
 
 Commands:
