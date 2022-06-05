@@ -107,7 +107,7 @@ fi
 docker volume ls -q | while read -r VOLUME
 do
 	docker run --rm -v "$VOLUME:/data" "$IMAGE" ls -A /data | {
-		if ! read -r
+		if ! read -r _
 		then
 			if [ "$ARG" = "list" ]
 			then
