@@ -2,6 +2,9 @@
 
 set -eu
 
+ARG=
+ALL=
+VERBOSE=
 IMAGE=alpine:latest
 
 metadata() {
@@ -23,12 +26,31 @@ Usage:  docker $CMD [OPTIONS]
 A tool to list or remove empty storage volumes
 
 Options:
+      --all          act on all EMPTY volumes (default only anonymous volumes)
       --image IMAGE  use IMAGE to check if volume is empty (default ${IMAGE})
+      --verbose      verbose output
 
 Commands:
   ls, list           list empty volumes
   rm, remove         remove empty volumes
 EOF
+}
+
+volumes() {
+	if [ -n "$ALL" ]
+	then
+		if [ -n "$VERBOSE" ]
+		then
+			echo > /dev/stderr "Listing all volumes"
+		fi
+		docker volume ls -q
+	else
+		if [ -n "$VERBOSE" ]
+		then
+			echo > /dev/stderr "Listing all automatic volumes"
+		fi
+		docker volume ls -q | awk '/^[0-9a-f]{64}$/ ;'
+	fi
 }
 
 if [ -z "${1-}" ]
@@ -45,9 +67,6 @@ then
 	exit 0
 fi
 
-ARG=
-VERBOSE=
-
 while [ $# -gt 0 ]
 do
 	case "$1" in
@@ -55,22 +74,22 @@ do
 			IMAGE="$2"
 			shift 2
 			;;
-
 		--image=*)
 			IMAGE="${1#--image=#}"
 			shift
 			;;
-
 		--help)
 			help
 			exit 0
 			;;
-
+		--all)
+			ALL=1
+			shift
+			;;
 		--verbose)
 			VERBOSE=1
 			shift
 			;;
-
 		ls|list)
 			if [ -n "$ARG" ]
 			then
@@ -80,7 +99,6 @@ do
 			ARG=list
 			shift
 			;;
-
 		rm|remove)
 			if [ -n "$ARG" ]
 			then
@@ -90,7 +108,6 @@ do
 			ARG=remove
 			shift
 			;;
-
 		*)
 			echo > /dev/stderr "\"$1\" is not a valid $CMD command"
 			exit 2
@@ -104,7 +121,7 @@ then
 	exit 0
 fi
 
-docker volume ls -q | while read -r VOLUME
+volumes | while read -r VOLUME
 do
 	docker run --rm -v "$VOLUME:/data" "$IMAGE" ls -A /data | {
 		if ! read -r _
